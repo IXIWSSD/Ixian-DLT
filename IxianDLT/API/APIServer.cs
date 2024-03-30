@@ -22,16 +22,551 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Threading.Tasks;
 
 namespace DLTNode
 {
     class APIServer : GenericAPIServer
     {
+
+           private WebSocketClientManager webSocketClientManager;
+        private class GetTxRequest
+        {
+            public string txId { get; set; }
+
+
+        }
+
+        private class BlockNumRequest
+        {
+            public string num { get; set; }
+
+
+        }
+
+        private class IdRequest
+        {
+            public string id { get; set; }
+
+
+        }
+
+        private class TxRequest
+        {
+            public string? fromIndex { get; set; }
+            public string? count { get; set; }
+
+
+        }
         public APIServer(List<string> listen_URLs, Dictionary<string, string> authorized_users = null, List<string> allowed_IPs = null)
         {
             // Start the API server
             start(listen_URLs, authorized_users, allowed_IPs);
         }
+
+                public void SetupWebSocketMessageHandling()
+        {
+            this.webSocketClientManager = WebSocketClientManager.Instance;
+            WebSocketClientManager.Instance.OnMessageReceived += HandleWebSocketMessage;
+        }
+
+        private async void HandleWebSocketMessage(string message)
+        {
+            var parsedMessage = webSocketClientManager.ParseMessage(message);
+
+            switch (parsedMessage.command)
+            {
+                case "HandleBlockHeight":
+                    await WsHandleBlockHeightAsync(parsedMessage.id, parsedMessage.type, parsedMessage.message);
+                    break;
+                case "HandleGetTransaction":
+
+                    await WsHandleGetTransactionAsync(parsedMessage.id, parsedMessage.type, parsedMessage.data, parsedMessage.message);
+                    break;
+                case "HandleGetBlock":
+
+                    await WsHandleGetBlockAsync(parsedMessage.id, parsedMessage.type, parsedMessage.data, parsedMessage.message);
+                    break;
+                case "HandleGetFullBlock":
+
+                    await WsHandleGetFullBlockAsync(parsedMessage.id, parsedMessage.type, parsedMessage.data, parsedMessage.message);
+                    break;
+                case "HandleGetLastBlocks":
+
+                    await WsHandleGetLastBlocksAsync(parsedMessage.id, parsedMessage.type, parsedMessage.message);
+                    break;
+                case "HandleGetWallet":
+
+                    await WsHandleGetWalletAsync(parsedMessage.id, parsedMessage.type, parsedMessage.data, parsedMessage.message);
+                    break;
+                case "HandleTx":
+
+                    await WsHandleTxAsync(parsedMessage.id, parsedMessage.type, parsedMessage.data, parsedMessage.message);
+                    break;
+                case "HandleTxUnapplied":
+
+                    await WsHandleTxUnappliedAsync(parsedMessage.id, parsedMessage.type, parsedMessage.data, parsedMessage.message);
+                    break;
+                case "HandleSupply":
+
+                    await WsHandleSupplyAsync(parsedMessage.id, parsedMessage.type, parsedMessage.message);
+                    break;
+                case "HandleNodes":
+
+                    await WsHandleNodesAsync(parsedMessage.id, parsedMessage.type, parsedMessage.message);
+                    break;
+            }
+        }
+
+        private async Task WsHandleBlockHeightAsync(string id, string type, string message)
+        {
+            try
+            {
+                if (type == "ping")
+                {
+                    WebSocketClientManager.ParsedMessage pingMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleBlockHeight",
+                        type = "pong",
+                        data = (object)null,
+                        message = (string)"",
+                        id = id
+                    };
+
+                    await webSocketClientManager.SendMessageAsync(pingMessage);
+                }
+                else
+                {
+
+
+                    // Construct and send the actual response for BlockHeight
+                    var responseData = onGetBlockCount();
+
+                    WebSocketClientManager.ParsedMessage responseMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleBlockHeight",
+                        id = id,
+                        type = "response",
+                        data = responseData,
+                        message = (string)""
+                    };
+
+                    await webSocketClientManager.SendMessageAsync(responseMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.error($"Failed to handle or send message: {ex.Message}");
+            }
+        }
+
+        private async Task WsHandleGetTransactionAsync(string id, string type, object data, string message)
+        {
+
+
+            try
+            {
+
+                if (type == "ping")
+                {
+                    WebSocketClientManager.ParsedMessage pingMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleGetTransaction",
+                        type = "pong",
+                        data = (object)null,
+                        message = (string)"",
+                        id = id
+                    };
+                    await webSocketClientManager.SendMessageAsync(pingMessage);
+                }
+                else
+                {
+                    GetTxRequest txRequest = JsonConvert.DeserializeObject<GetTxRequest>(data.ToString());
+
+                    Dictionary<string, object> parameters = new Dictionary<string, object> { { "id", txRequest.txId } };
+                    var responseData = onGetTransaction(parameters);
+
+
+                    WebSocketClientManager.ParsedMessage responseMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleGetTransaction",
+                        id = id,
+                        type = "response",
+                        data = responseData,
+                        message = (string)""
+                    };
+                    await webSocketClientManager.SendMessageAsync(responseMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.error($"Failed to handle or send message: {ex.Message}");
+            }
+        }
+
+        private async Task WsHandleGetBlockAsync(string id, string type, object data, string message)
+        {
+
+
+            try
+            {
+
+                if (type == "ping")
+                {
+                    WebSocketClientManager.ParsedMessage pingMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleGetBlock",
+                        type = "pong",
+                        data = (object)null,
+                        message = (string)"",
+                        id = id
+                    };
+                    await webSocketClientManager.SendMessageAsync(pingMessage);
+                }
+                else
+                {
+                    BlockNumRequest blockNumRequest = JsonConvert.DeserializeObject<BlockNumRequest>(data.ToString());
+
+                    Dictionary<string, object> parameters = new Dictionary<string, object> { { "num", blockNumRequest.num } };
+                    var responseData = onGetBlock(parameters);
+
+                    WebSocketClientManager.ParsedMessage responseMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleGetBlock",
+                        id = id,
+                        type = "response",
+                        data = responseData,
+                        message = (string)""
+                    };
+                    await webSocketClientManager.SendMessageAsync(responseMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.error($"Failed to handle or send message: {ex.Message}");
+            }
+        }
+
+        private async Task WsHandleGetFullBlockAsync(string id, string type, object data, string message)
+        {
+
+
+            try
+            {
+
+                if (type == "ping")
+                {
+                    WebSocketClientManager.ParsedMessage pingMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleGetFullBlock",
+                        type = "pong",
+                        data = (object)null,
+                        message = (string)"",
+                        id = id
+                    };
+                    await webSocketClientManager.SendMessageAsync(pingMessage);
+                }
+                else
+                {
+                    BlockNumRequest blockNumRequest = JsonConvert.DeserializeObject<BlockNumRequest>(data.ToString());
+
+                    Dictionary<string, object> parameters = new Dictionary<string, object> { { "num", blockNumRequest.num } };
+                    var responseData = onGetFullBlock(parameters);
+
+                    WebSocketClientManager.ParsedMessage responseMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleGetFullBlock",
+                        id = id,
+                        type = "response",
+                        data = responseData,
+                        message = (string)""
+                    };
+                    await webSocketClientManager.SendMessageAsync(responseMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.error($"Failed to handle or send message: {ex.Message}");
+            }
+        }
+
+        private async Task WsHandleGetLastBlocksAsync(string id, string type, string message)
+        {
+
+            try
+            {
+
+                if (type == "ping")
+                {
+                    WebSocketClientManager.ParsedMessage pingMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleGetLastBlocks",
+                        type = "pong",
+                        data = (object)null,
+                        message = (string)"",
+                        id = id
+                    };
+                    await webSocketClientManager.SendMessageAsync(pingMessage);
+                }
+                else
+                {
+
+                    var responseData = onGetLastBlocks();
+
+                    WebSocketClientManager.ParsedMessage responseMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleGetLastBlocks",
+                        id = id,
+                        type = "response",
+                        data = responseData,
+                        message = (string)""
+                    };
+
+                    await webSocketClientManager.SendMessageAsync(responseMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.error($"Failed to handle or send message: {ex.Message}");
+            }
+        }
+
+        private async Task WsHandleGetWalletAsync(string id, string type, object data, string message)
+        {
+
+
+            try
+            {
+
+                if (type == "ping")
+                {
+                    WebSocketClientManager.ParsedMessage pingMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleGetWallet",
+                        type = "pong",
+                        data = (object)null,
+                        message = (string)"",
+                        id = id
+                    };
+                    await webSocketClientManager.SendMessageAsync(pingMessage);
+                }
+                else
+                {
+                    IdRequest getWalletRequest = JsonConvert.DeserializeObject<IdRequest>(data.ToString());
+
+                    Dictionary<string, object> parameters = new Dictionary<string, object> { { "id", getWalletRequest.id } };
+                    var responseData = onGetWallet(parameters);
+
+                    WebSocketClientManager.ParsedMessage responseMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleGetWallet",
+                        id = id,
+                        type = "response",
+                        data = responseData,
+                        message = (string)""
+                    };
+                    await webSocketClientManager.SendMessageAsync(responseMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.error($"Failed to handle or send message: {ex.Message}");
+            }
+        }
+
+        private async Task WsHandleTxAsync(string id, string type, object data, string message)
+        {
+
+
+            try
+            {
+
+                if (type == "ping")
+                {
+                    WebSocketClientManager.ParsedMessage pingMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleTx",
+                        type = "pong",
+                        data = (object)null,
+                        message = (string)"",
+                        id = id
+                    };
+                    await webSocketClientManager.SendMessageAsync(pingMessage);
+                }
+                else
+                {
+                    TxRequest txRequest = JsonConvert.DeserializeObject<TxRequest>(data.ToString());
+
+                    Dictionary<string, object> parameters = new Dictionary<string, object>();
+
+                    if (!string.IsNullOrEmpty(txRequest.fromIndex))
+                    {
+                        parameters.Add("fromIndex", txRequest.fromIndex);
+                    }
+
+                    if (!string.IsNullOrEmpty(txRequest.count))
+                    {
+                        parameters.Add("count", txRequest.count);
+                    }
+
+                    var responseData = onTx(parameters);
+
+                    WebSocketClientManager.ParsedMessage responseMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleTx",
+                        id = id,
+                        type = "response",
+                        data = responseData,
+                        message = (string)""
+                    };
+                    await webSocketClientManager.SendMessageAsync(responseMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.error($"Failed to handle or send message: {ex.Message}");
+            }
+        }
+
+        private async Task WsHandleTxUnappliedAsync(string id, string type, object data, string message)
+        {
+
+
+            try
+            {
+
+                if (type == "ping")
+                {
+                    WebSocketClientManager.ParsedMessage pingMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleTxUnapplied",
+                        type = "pong",
+                        data = (object)null,
+                        message = (string)"",
+                        id = id
+                    };
+                    await webSocketClientManager.SendMessageAsync(pingMessage);
+                }
+                else
+                {
+                    TxRequest txRequest = JsonConvert.DeserializeObject<TxRequest>(data.ToString());
+
+                    Dictionary<string, object> parameters = new Dictionary<string, object>();
+
+                    if (!string.IsNullOrEmpty(txRequest.fromIndex))
+                    {
+                        parameters.Add("fromIndex", txRequest.fromIndex);
+                    }
+
+                    if (!string.IsNullOrEmpty(txRequest.count))
+                    {
+                        parameters.Add("count", txRequest.count);
+                    }
+
+                    var responseData = onTxu(parameters);
+
+                    WebSocketClientManager.ParsedMessage responseMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleTxUnapplied",
+                        id = id,
+                        type = "response",
+                        data = responseData,
+                        message = (string)""
+                    };
+                    await webSocketClientManager.SendMessageAsync(responseMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.error($"Failed to handle or send message: {ex.Message}");
+            }
+        }
+
+        private async Task WsHandleSupplyAsync(string id, string type, string message)
+        {
+
+
+            try
+            {
+
+                if (type == "ping")
+                {
+                    WebSocketClientManager.ParsedMessage pingMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleSupply",
+                        type = "pong",
+                        data = (object)null,
+                        message = (string)"",
+                        id = id
+                    };
+                    await webSocketClientManager.SendMessageAsync(pingMessage);
+                }
+                else
+                {
+
+
+                    var responseData = onSupply();
+
+                    WebSocketClientManager.ParsedMessage responseMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleSupply",
+                        id = id,
+                        type = "response",
+                        data = responseData,
+                        message = (string)""
+                    };
+                    await webSocketClientManager.SendMessageAsync(responseMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.error($"Failed to handle or send message: {ex.Message}");
+            }
+        }
+
+        private async Task WsHandleNodesAsync(string id, string type, string message)
+        {
+
+
+            try
+            {
+
+                if (type == "ping")
+                {
+                    WebSocketClientManager.ParsedMessage pingMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleNodes",
+                        type = "pong",
+                        data = (object)null,
+                        message = (string)"",
+                        id = id
+                    };
+                    await webSocketClientManager.SendMessageAsync(pingMessage);
+                }
+                else
+                {
+
+
+                    var responseData = onCountNodeVersions();
+
+                    WebSocketClientManager.ParsedMessage responseMessage = new WebSocketClientManager.ParsedMessage
+                    {
+                        command = "HandleNodes",
+                        id = id,
+                        type = "response",
+                        data = responseData,
+                        message = (string)""
+                    };
+                    await webSocketClientManager.SendMessageAsync(responseMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logging.error($"Failed to handle or send message: {ex.Message}");
+            }
+        }
+
+
 
         protected override bool processRequest(HttpListenerContext context, string methodName, Dictionary<string, object> parameters)
         {

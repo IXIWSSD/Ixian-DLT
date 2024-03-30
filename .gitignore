@@ -6,6 +6,8 @@
 # Subproject - IxianCore
 IxianCore/
 
+start.sh
+
 # User-specific files
 *.suo
 *.user

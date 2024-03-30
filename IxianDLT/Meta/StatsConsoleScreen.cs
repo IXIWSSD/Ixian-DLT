@@ -32,8 +32,8 @@ namespace DLT.Meta
         private ThreadLiveCheck TLC;
 
         public StatsConsoleScreen()
-        {          
-            if(!Config.verboseOutput)
+        {
+            if (!Config.verboseOutput)
             {
                 Console.Clear();
             }
@@ -76,7 +76,8 @@ namespace DLT.Meta
                             drawScreen();
                             drawCycle++;
                         }
-                    }catch(Exception e)
+                    }
+                    catch (Exception e)
                     {
                         Logging.error("Error in StatsConsoleScreen.threadLoop: {0}", e);
                     }
@@ -91,6 +92,38 @@ namespace DLT.Meta
             //Console.BackgroundColor = ConsoleColor.DarkGreen;
             Console.Clear();
             drawScreen();
+        }
+
+        private void drawWebSocketStatus()
+        {
+            // Check if the Config has a WebSocket URL set
+            if (!string.IsNullOrWhiteSpace(Config.websocketUrl))
+            {
+                bool isConnected = Node.IsWebSocketConnected();
+                bool isReconnecting = Node.IsWebSocketReconnecting();
+                var (ReconnectionAttempts, MaxReconnectionAttempts) = Node.WebSocketReconnectionAttempts();
+
+                string wsStatus = isConnected ? "Connected" : "Disconnected";
+                if (!isConnected && isReconnecting)
+                {
+                    wsStatus += $" - Reconnecting ({ReconnectionAttempts}/{MaxReconnectionAttempts})...";
+                }
+
+                string lastPong = Node.GetLastWebSocketPongTime() == DateTime.MinValue ? "N/A" : $"{(DateTime.UtcNow - Node.GetLastWebSocketPongTime()).TotalSeconds:F0}s ago";
+                int processedRequests = Node.GetWebSocketProcessedRequests();
+                Console.ForegroundColor = ConsoleColor.DarkGreen;
+
+                writeLine("");
+                writeLine($" WebSocket Status:     {wsStatus}");
+                writeLine($" Last Pong:            {lastPong}");
+                writeLine($" Processed Requests:   {processedRequests}");
+                Console.ResetColor();
+            }
+            else
+            {
+                writeLine($" WebSocket Status:     Not in use");
+
+            }
         }
 
         public void drawScreen()
@@ -125,6 +158,9 @@ namespace DLT.Meta
             writeLine(" ██║██╔╝ ██╗██║██║  ██║██║ ╚████║    ██████╔╝███████╗██║    ");
             writeLine(" ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝    ╚═════╝ ╚══════╝╚═╝    ");
             writeLine(" {0}", (Config.version + " BETA ").PadLeft(59));
+            Console.ForegroundColor = ConsoleColor.DarkGreen;
+            writeLine(" {0}", ("IXIWSS Edition").PadLeft(58));
+            Console.ResetColor();
             writeLine(" {0}", ("http://localhost:" + Config.apiPort + "/"));
             writeLine("────────────────────────────────────────────────────────────");
             if (update_avail)
@@ -176,7 +212,7 @@ namespace DLT.Meta
 
             Console.Write(" Status:               ");
 
-            string dltStatus =  "active";
+            string dltStatus = "active";
             string dltStatusDetail = "";
 
             if (Node.blockSync.synchronizing)
@@ -211,7 +247,7 @@ namespace DLT.Meta
                 dltStatus = "No fully signed block received for over 30 minutes";
             }
 
-            if(Clock.networkTimeDifference != Clock.realNetworkTimeDifference && connectionsOut > 2)
+            if (Clock.networkTimeDifference != Clock.realNetworkTimeDifference && connectionsOut > 2)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 dltStatus = "Please make sure that your computer's date and time are correct";
@@ -238,16 +274,20 @@ namespace DLT.Meta
             writeLine(" Signer Hashrate:      {0}", Node.signerPowMiner.lastHashRate);
 
             // Mining status
-            string mineStatus =    "stopped";
+            string mineStatus = "stopped";
             if (Node.miner.lastHashRate > 0)
-                mineStatus =    "active ";
+                mineStatus = "active ";
             if (Node.miner.pause)
-                mineStatus =    "paused ";
+                mineStatus = "paused ";
 
             writeLine("");
             writeLine(" Mining:               {0}", mineStatus);
             writeLine(" Hashrate:             {0}", Node.miner.lastHashRate);
             writeLine(" Solved Blocks:        {0}", Node.miner.getSolvedBlocksCount());
+            writeLine("");
+
+            drawWebSocketStatus();
+
             writeLine("────────────────────────────────────────────────────────────");
 
             TimeSpan elapsed = DateTime.UtcNow - startTime;
